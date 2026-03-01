@@ -90,7 +90,7 @@
                             <label class="block text-sm font-semibold text-gray-700 mb-2">4. พนง.ผู้รับผิดชอบดูแลลูกค้า</label>
                             <div class="space-y-2">
                                 <div v-for="(emp, index) in form.employees" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.employees[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ธนกฤษ ภูชมชื่น">
+                                    <input v-model="form.employees[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น นิวัฒน์ พงษ์สุวรรณ B2B3">
                                     <button @click="removeItem('employees', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
@@ -106,7 +106,7 @@
                             <label class="block text-sm font-semibold text-gray-700 mb-2">5. ราคาที่ใช้ปิดการขาย (โปรโมชั่น)</label>
                             <div class="space-y-2">
                                 <div v-for="(pro, index) in form.promotions" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.promotions[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น โปรส่วนลดสมาชิก">
+                                    <input v-model="form.promotions[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น โปรส่วนลดสมาชิก Home Card 1,500 - ส่วนลด Vendor YI1013=3000">
                                     <button @click="removeItem('promotions', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
@@ -122,7 +122,7 @@
                             <label class="block text-sm font-semibold text-gray-700 mb-2">6. ประเภทการชำระเงิน</label>
                             <div class="space-y-2">
                                 <div v-for="(pay, index) in form.paymentType" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.paymentType[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ชำระแบบผ่อน 0%">
+                                    <input v-model="form.paymentType[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ชำระแบบผ่อน 0% 10 เดือน บัตรเครดิตกรุงศรีโฮมโปรวีซ่า ลดเพิ่ม 3%">
                                     <button @click="removeItem('paymentType', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
@@ -135,7 +135,7 @@
 
                         <div class="mb-6">
                             <label class="block text-sm font-semibold text-gray-700 mb-1.5">7. เป็นลูกค้าประเภทใด</label>
-                            <input v-model="form.customerType" type="text" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ลูกค้า End user...">
+                            <input v-model="form.customerType" type="text" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ลูกค้าไม่ได้เป็น Commercial เป็นลุกค้า End User ซื้อของเข้าบ้าน">
                         </div>
 
                         <div>
