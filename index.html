@@ -2,11 +2,12 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- ตั้งค่า Viewport ให้รองรับทุกหน้าจออย่างสมบูรณ์ และจัดขอบจอให้พอดี (safe-area) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <title>ระบบสร้างฟอร์แมตรายงานส่ง LINE</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Vue.js (ใช้สำหรับจัดการ Logic แบบเดียวกับ React ในไฟล์เดียว) -->
+    <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -14,7 +15,11 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
         body {
             font-family: 'Sarabun', sans-serif;
+            /* ป้องกันการกระตุกเวลาเลื่อนใน iOS */
+            -webkit-overflow-scrolling: touch; 
         }
+        
+        /* สไตล์ Scrollbar ของ Preview */
         .preview-container {
             scrollbar-width: thin;
             scrollbar-color: #8b9dc3 #abc1d1;
@@ -26,159 +31,341 @@
             background-color: #8b9dc3;
             border-radius: 10px;
         }
+
+        /* ซ่อน Scrollbar ของ Tabs แต่ยังเลื่อนได้ */
+        .hide-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+
+        /* จัดการคำยาวๆ ไม่ให้ล้นกรอบ */
+        .break-word-safe {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div id="app" class="p-4 md:p-6 lg:p-8">
-        <div class="max-w-6xl mx-auto">
-            
-            <!-- Header -->
-            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+<!-- เพิ่ม pb-24 ในมือถือเพื่อไม่ให้โดนแถบปุ่มล่างบัง -->
+<body class="bg-gray-50 min-h-screen pb-24 lg:pb-0">
+    <div id="app" class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+        
+        <!-- Header & Navigation -->
+        <div class="mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">
                 <div>
-                    <h1 class="text-xl md:text-2xl font-bold text-gray-800">ระบบสร้างฟอร์แมตรายงานส่ง LINE</h1>
-                    <p class="text-gray-500 text-xs md:text-sm mt-1">กรอกข้อมูลด้านซ้าย ข้อความจะถูกจัดรูปแบบอัตโนมัติด้านขวา</p>
+                    <h1 class="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 tracking-tight">ระบบสร้างฟอร์แมตรายงาน</h1>
+                    <p class="text-gray-500 text-sm mt-1">กรอกข้อมูลด้านซ้าย ข้อความจะถูกจัดรูปแบบอัตโนมัติด้านขวา</p>
                 </div>
                 <button 
                     @click="clearForm"
-                    class="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors shadow-sm w-full sm:w-auto justify-center"
+                    class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors shadow-sm w-full sm:w-auto justify-center font-medium"
                 >
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> ล้างข้อมูล
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> ล้างข้อมูลหน้านี้
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-                
-                <!-- Left: Form -->
-                <div class="lg:col-span-7 space-y-6">
-                    <div class="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-gray-100">
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">รหัสสาขา / หัวรายงาน</label>
-                                <input v-model="form.branchHeader" type="text" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-blue-800">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">1. ชื่อลูกค้า</label>
-                                <input v-model="form.customerName" type="text" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="เช่น คุณกำพล ปรางค์ศรีทอง">
-                            </div>
-                        </div>
-
-                        <!-- 2. รายการสินค้า -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">2. รายการสินค้าที่ซื้อ</label>
-                            <div class="space-y-2">
-                                <div v-for="(item, index) in form.items" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.items[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder='เช่น ทีวี ขนาด 85" จำนวน 1 EA'>
-                                    <button @click="removeItem('items', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                                <button @click="addItem('items')" class="flex items-center gap-1 text-sm text-blue-600 font-medium hover:bg-blue-50 px-2 py-1 rounded">
-                                    <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 3. หน้างาน -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">3. ประเภทหน้างาน</label>
-                            <textarea v-model="form.jobSite" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none" rows="2" placeholder="เช่น บ้านพักอาศัย หมู่บ้าน..."></textarea>
-                        </div>
-
-                        <!-- 4. พนักงาน -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">4. พนง.ผู้รับผิดชอบดูแลลูกค้า</label>
-                            <div class="space-y-2">
-                                <div v-for="(emp, index) in form.employees" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.employees[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น นิวัฒน์ พงษ์สุวรรณ B2B3">
-                                    <button @click="removeItem('employees', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                                <button @click="addItem('employees')" class="flex items-center gap-1 text-sm text-blue-600 font-medium hover:bg-blue-50 px-2 py-1 rounded">
-                                    <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 5. ราคา/โปร -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">5. ราคาที่ใช้ปิดการขาย (โปรโมชั่น)</label>
-                            <div class="space-y-2">
-                                <div v-for="(pro, index) in form.promotions" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.promotions[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น โปรส่วนลดสมาชิก Home Card 1,500 - ส่วนลด Vendor YI1013=3000">
-                                    <button @click="removeItem('promotions', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                                <button @click="addItem('promotions')" class="flex items-center gap-1 text-sm text-blue-600 font-medium hover:bg-blue-50 px-2 py-1 rounded">
-                                    <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 6. ชำระเงิน (แบบเพิ่มรายการ) -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">6. ประเภทการชำระเงิน</label>
-                            <div class="space-y-2">
-                                <div v-for="(pay, index) in form.paymentType" :key="index" class="flex items-center gap-2">
-                                    <input v-model="form.paymentType[index]" type="text" class="flex-1 p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ชำระแบบผ่อน 0% 10 เดือน บัตรเครดิตกรุงศรีโฮมโปรวีซ่า ลดเพิ่ม 3%">
-                                    <button @click="removeItem('paymentType', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                                <button @click="addItem('paymentType')" class="flex items-center gap-1 text-sm text-blue-600 font-medium hover:bg-blue-50 px-2 py-1 rounded">
-                                    <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">7. เป็นลูกค้าประเภทใด</label>
-                            <input v-model="form.customerType" type="text" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น ลูกค้าไม่ได้เป็น Commercial เป็นลุกค้า End User ซื้อของเข้าบ้าน">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">8. โอกาสการขายสินค้าเพิ่ม</label>
-                            <input v-model="form.upsell" type="text" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="เช่น นำเสนอ สินค้ากลุ่ม MC PB">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Preview -->
-                <div class="lg:col-span-5 relative">
-                    <div class="sticky top-6">
-                        <div class="bg-[#8b9dc3] rounded-t-xl p-3 text-white font-semibold flex justify-between items-center shadow-md">
-                            <span class="text-sm md:text-base">พรีวิวข้อความ (LINE)</span>
-                            <div class="flex items-center gap-2">
-                                <button
-                                    @click="sendToLine"
-                                    class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all bg-[#00B900] text-white hover:bg-[#009900] shadow-sm"
-                                >
-                                    <i data-lucide="send" class="w-4 h-4"></i>
-                                    ส่งเข้าไลน์
-                                </button>
-                                <button
-                                    @click="copyToClipboard"
-                                    :class="isCopied ? 'bg-green-500 text-white' : 'bg-white text-[#8b9dc3] hover:bg-gray-100'"
-                                    class="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all"
-                                >
-                                    <i v-if="isCopied" data-lucide="check-circle-2" class="w-4 h-4"></i>
-                                    <i v-else data-lucide="copy" class="w-4 h-4"></i>
-                                    {{ isCopied ? 'คัดลอกแล้ว!' : 'คัดลอกข้อความ' }}
-                                </button>
-                            </div>
-                        </div>
-                        <div class="bg-[#abc1d1] p-3 md:p-4 rounded-b-xl shadow-md min-h-[350px] max-h-[60vh] lg:max-h-none lg:h-[calc(100vh-160px)] lg:min-h-[500px] overflow-y-auto preview-container">
-                            <div class="bg-white rounded-[16px] md:rounded-[20px] p-4 md:p-5 whitespace-pre-wrap font-sans text-[14px] md:text-[15px] text-gray-800 shadow-sm leading-[1.6]">
-                                {{ generatedText }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <!-- Tabs -->
+            <div class="flex space-x-2 border-b border-gray-200 pb-2 overflow-x-auto hide-scrollbar">
+                <button 
+                    @click="currentPage = 'bigCustomer'"
+                    :class="currentPage === 'bigCustomer' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+                    class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap"
+                >
+                    <i data-lucide="file-text" class="w-4 h-4"></i> รายงานลูกค้ารายใหญ่
+                </button>
+                <button 
+                    @click="currentPage = 'dailySales'"
+                    :class="currentPage === 'dailySales' ? 'bg-[#ff6b6b] text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'"
+                    class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap"
+                >
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> รายงานยอดขายประจำวัน
+                </button>
             </div>
         </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+            
+            <!-- Left: Form Area -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <!-- ============================================== -->
+                <!-- FORM 1: รายงานลูกค้ารายใหญ่ (Big Customer) -->
+                <!-- ============================================== -->
+                <div v-show="currentPage === 'bigCustomer'" class="bg-white p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border border-gray-100 transition-all">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">รหัสสาขา / หัวรายงาน</label>
+                            <!-- ใช้ text-base ใน input เพื่อป้องกัน iOS ซูมจอ -->
+                            <input v-model="formBigCust.branchHeader" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-base sm:text-sm font-bold text-blue-800 transition-shadow">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1.5">1. ชื่อลูกค้า</label>
+                            <input v-model="formBigCust.customerName" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-base sm:text-sm transition-shadow" placeholder="เช่น คุณกำพล ปรางค์ศรีทอง">
+                        </div>
+                    </div>
+
+                    <!-- 2. รายการสินค้า -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">2. รายการสินค้าที่ซื้อ</label>
+                        <div class="space-y-2">
+                            <div v-for="(item, index) in formBigCust.items" :key="index" class="flex items-center gap-2">
+                                <input v-model="formBigCust.items[index]" type="text" class="flex-1 p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-sm transition-shadow" placeholder='เช่น ทีวี ขนาด 85" จำนวน 1 EA'>
+                                <button @click="removeItem('bigCust', 'items', index)" class="p-2.5 text-red-500 hover:bg-red-50 active:bg-red-100 rounded-lg flex-shrink-0 transition-colors">
+                                    <i data-lucide="trash-2" class="w-5 h-5 sm:w-4 sm:h-4"></i>
+                                </button>
+                            </div>
+                            <button @click="addItem('bigCust', 'items')" class="flex items-center gap-1 text-sm text-blue-600 font-semibold hover:bg-blue-50 active:bg-blue-100 px-3 py-1.5 rounded transition-colors w-max">
+                                <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. หน้างาน -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">3. ประเภทหน้างาน</label>
+                        <textarea v-model="formBigCust.jobSite" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-base sm:text-sm resize-none transition-shadow" rows="2" placeholder="เช่น บ้านพักอาศัย หมู่บ้าน..."></textarea>
+                    </div>
+
+                    <!-- 4. พนักงาน -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">4. พนง.ผู้รับผิดชอบดูแลลูกค้า</label>
+                        <div class="space-y-2">
+                            <div v-for="(emp, index) in formBigCust.employees" :key="index" class="flex items-center gap-2">
+                                <input v-model="formBigCust.employees[index]" type="text" class="flex-1 p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-sm transition-shadow" placeholder="เช่น ธนกฤษ ภูชมชื่น">
+                                <button @click="removeItem('bigCust', 'employees', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-5 h-5 sm:w-4 sm:h-4"></i>
+                                </button>
+                            </div>
+                            <button @click="addItem('bigCust', 'employees')" class="flex items-center gap-1 text-sm text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1.5 rounded transition-colors w-max">
+                                <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 5. ราคา/โปร -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">5. ราคาที่ใช้ปิดการขาย (โปรโมชั่น)</label>
+                        <div class="space-y-2">
+                            <div v-for="(pro, index) in formBigCust.promotions" :key="index" class="flex items-center gap-2">
+                                <input v-model="formBigCust.promotions[index]" type="text" class="flex-1 p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-sm transition-shadow" placeholder="เช่น โปรส่วนลดสมาชิก">
+                                <button @click="removeItem('bigCust', 'promotions', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-5 h-5 sm:w-4 sm:h-4"></i>
+                                </button>
+                            </div>
+                            <button @click="addItem('bigCust', 'promotions')" class="flex items-center gap-1 text-sm text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1.5 rounded transition-colors w-max">
+                                <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 6. ชำระเงิน -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">6. ประเภทการชำระเงิน</label>
+                        <div class="space-y-2">
+                            <div v-for="(pay, index) in formBigCust.paymentType" :key="index" class="flex items-center gap-2">
+                                <input v-model="formBigCust.paymentType[index]" type="text" class="flex-1 p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-sm transition-shadow" placeholder="เช่น ชำระแบบผ่อน 0%">
+                                <button @click="removeItem('bigCust', 'paymentType', index)" class="p-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                    <i data-lucide="trash-2" class="w-5 h-5 sm:w-4 sm:h-4"></i>
+                                </button>
+                            </div>
+                            <button @click="addItem('bigCust', 'paymentType')" class="flex items-center gap-1 text-sm text-blue-600 font-semibold hover:bg-blue-50 px-3 py-1.5 rounded transition-colors w-max">
+                                <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มรายการ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">7. เป็นลูกค้าประเภทใด</label>
+                        <input v-model="formBigCust.customerType" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-sm transition-shadow" placeholder="เช่น ลูกค้า End user...">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">8. โอกาสการขายสินค้าเพิ่ม</label>
+                        <input v-model="formBigCust.upsell" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base sm:text-sm transition-shadow" placeholder="เช่น นำเสนอ สินค้ากลุ่ม MC PB">
+                    </div>
+                </div>
+
+
+                <!-- ============================================== -->
+                <!-- FORM 2: รายงานยอดขายประจำวัน (Daily Sales) -->
+                <!-- ============================================== -->
+                <div v-show="currentPage === 'dailySales'" class="bg-white p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border border-gray-100 transition-all">
+                    
+                    <!-- ข้อมูลส่วนตัวและวันที่ -->
+                    <div class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">ประจำเดือน</label>
+                                <input v-model="formDaily.month" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff6b6b] text-base sm:text-sm outline-none transition-shadow" placeholder="เช่น กุมภาพันธ์">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">📌 ชื่อพนักงาน</label>
+                                <input v-model="formDaily.salespersonName" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff6b6b] text-base sm:text-sm font-bold text-[#ff6b6b] outline-none transition-shadow" placeholder="เช่น หนู PJS">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">วันที่ปัจจุบัน (รายวัน)</label>
+                                <input v-model="formDaily.currentDate" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff6b6b] text-base sm:text-sm outline-none transition-shadow" placeholder="เช่น 26/02/26">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">ช่วงวันที่ (สะสม MTD)</label>
+                                <input v-model="formDaily.mtdDateRange" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff6b6b] text-base sm:text-sm outline-none transition-shadow" placeholder="เช่น 01-26/02/26">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- หมวด: ยอดขายส่วนตัว -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-800 border-l-4 border-[#ff6b6b] pl-2 mb-3">1. ยอดขายส่วนตัว</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดขายรายวัน (บาท)</label>
+                                <input v-model="formDaily.sales.daily" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff6b6b] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดขายสะสม MTD (บาท)</label>
+                                <input v-model="formDaily.sales.mtd" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#ff6b6b] text-base sm:text-sm outline-none" placeholder="825,311">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- หมวด: APP B2B -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-800 border-l-4 border-[#4ecdc4] pl-2 mb-3">2. ยอดขาย APP B2B</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดขายรายวัน (บาท)</label>
+                                <input v-model="formDaily.appB2B.daily" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#4ecdc4] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดขายสะสม MTD (บาท)</label>
+                                <input v-model="formDaily.appB2B.mtd" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#4ecdc4] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- หมวด: BizID -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-800 border-l-4 border-[#45b7d1] pl-2 mb-3">3. ยอดสมัคร BizID</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดสมัครรายวัน (ราย)</label>
+                                <input v-model="formDaily.bizId.daily" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#45b7d1] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดสมัครสะสม MTD (ราย)</label>
+                                <input v-model="formDaily.bizId.mtd" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#45b7d1] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- หมวด: In Active -->
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-800 border-l-4 border-[#f9ca24] pl-2 mb-3">4. ยอดการโทรติดตามลูกค้า In Active</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">โทรแล้ว (ราย)</label>
+                                <input v-model="formDaily.inActive.called" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#f9ca24] text-base sm:text-sm outline-none" placeholder="65">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">เข้ามาแล้ว (ราย)</label>
+                                <input v-model="formDaily.inActive.visited" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#f9ca24] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดขาย (บาท)</label>
+                                <input v-model="formDaily.inActive.sales" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#f9ca24] text-base sm:text-sm outline-none" placeholder="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- หมวด: เข้าพบลูกค้า -->
+                    <div>
+                        <h3 class="font-bold text-gray-800 border-l-4 border-[#9b59b6] pl-2 mb-3">5. เข้าพบลูกค้า</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">รายวัน (ราย)</label>
+                                <input v-model="formDaily.visits.daily" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#9b59b6] text-base sm:text-sm outline-none" placeholder="18">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">สะสม MTD (ราย)</label>
+                                <input v-model="formDaily.visits.mtd" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#9b59b6] text-base sm:text-sm outline-none" placeholder="59">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">เข้ามาปิดแล้ว (ราย)</label>
+                                <input v-model="formDaily.visits.closed" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#9b59b6] text-base sm:text-sm outline-none" placeholder="10">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">ยอดขาย (บาท)</label>
+                                <input v-model="formDaily.visits.sales" type="text" class="w-full p-2.5 sm:p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#9b59b6] text-base sm:text-sm outline-none" placeholder="397,526">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right: Preview Area (Sticky on Desktop) -->
+            <div class="lg:col-span-5 relative">
+                <div class="lg:sticky lg:top-6">
+                    <!-- Preview Header (ซ่อนปุ่มบนมือถือ เพราะย้ายไปอยู่บาร์ด้านล่างแทน) -->
+                    <div :class="currentPage === 'bigCustomer' ? 'bg-[#8b9dc3]' : 'bg-[#ff8787]'" class="rounded-t-xl p-3 text-white font-semibold flex justify-between items-center shadow-md transition-colors">
+                        <span class="text-sm md:text-base flex items-center gap-2">
+                            <i data-lucide="smartphone" class="w-4 h-4"></i> พรีวิวข้อความ (LINE)
+                        </span>
+                        
+                        <!-- ปุ่ม Action จะโชว์แค่บนจอใหญ่ (Desktop/Tablet) -->
+                        <div class="hidden sm:flex items-center gap-2">
+                            <button
+                                @click="sendToLine"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-[#00B900] text-white hover:bg-[#009900] shadow-sm active:scale-95"
+                            >
+                                <i data-lucide="send" class="w-4 h-4"></i> ส่งเข้าไลน์
+                            </button>
+                            <button
+                                @click="copyToClipboard"
+                                :class="isCopied ? 'bg-green-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-95"
+                            >
+                                <i v-if="isCopied" data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                <i v-else data-lucide="copy" class="w-4 h-4"></i>
+                                {{ isCopied ? 'คัดลอกแล้ว!' : 'คัดลอก' }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Body -->
+                    <div :class="currentPage === 'bigCustomer' ? 'bg-[#abc1d1]' : 'bg-[#ffd3d3]'" class="p-3 md:p-4 rounded-b-xl shadow-md min-h-[300px] lg:h-[calc(100vh-160px)] lg:min-h-[500px] overflow-y-auto preview-container transition-colors">
+                        <div class="bg-white rounded-[16px] md:rounded-[20px] p-4 md:p-5 whitespace-pre-wrap font-sans text-[14px] md:text-[15px] text-gray-800 shadow-sm leading-[1.6] break-word-safe">
+                            {{ generatedText }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Mobile Fixed Action Bar (แสดงเฉพาะจอมือถือ) -->
+    <div class="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 px-4 z-50 flex items-center justify-between gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom,12px)]">
+        <button 
+            @click="copyToClipboard" 
+            class="flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold text-sm border-2 transition-all" 
+            :class="isCopied ? 'bg-green-50 text-green-600 border-green-500' : 'bg-white text-gray-700 border-gray-200 active:bg-gray-100'"
+        >
+            <i v-if="isCopied" data-lucide="check-circle-2" class="w-5 h-5"></i>
+            <i v-else data-lucide="copy" class="w-5 h-5"></i>
+            {{ isCopied ? 'คัดลอกแล้ว!' : 'คัดลอกข้อความ' }}
+        </button>
+        <button 
+            @click="sendToLine" 
+            class="flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold text-sm bg-[#00B900] text-white active:bg-[#009900] transition-all border-2 border-[#00B900]"
+        >
+            <i data-lucide="send" class="w-5 h-5"></i>
+            ส่งเข้าไลน์
+        </button>
     </div>
 
     <script>
@@ -186,8 +373,11 @@
 
         createApp({
             setup() {
+                const currentPage = ref('bigCustomer'); 
                 const isCopied = ref(false);
-                const form = ref({
+
+                // State สำหรับหน้ารายงานลูกค้ารายใหญ่
+                const formBigCust = ref({
                     branchHeader: 'S055-CTR',
                     customerName: '',
                     items: [''],
@@ -199,57 +389,123 @@
                     upsell: ''
                 });
 
-                const addItem = (key) => {
-                    form.value[key].push('');
+                // State สำหรับหน้ายอดขายประจำวัน
+                const formDaily = ref({
+                    month: 'กุมภาพันธ์',
+                    salespersonName: 'หนู PJS',
+                    currentDate: '26/02/26',
+                    mtdDateRange: '01-26/02/26',
+                    sales: { daily: '', mtd: '' },
+                    appB2B: { daily: '', mtd: '' },
+                    bizId: { daily: '', mtd: '' },
+                    inActive: { called: '', visited: '', sales: '' },
+                    visits: { daily: '', mtd: '', closed: '', sales: '' }
+                });
+
+                const addItem = (formType, key) => {
+                    if (formType === 'bigCust') {
+                        formBigCust.value[key].push('');
+                    }
                     nextTick(() => lucide.createIcons());
                 };
 
-                const removeItem = (key, index) => {
-                    form.value[key].splice(index, 1);
-                    if (form.value[key].length === 0) form.value[key].push('');
+                const removeItem = (formType, key, index) => {
+                    if (formType === 'bigCust') {
+                        formBigCust.value[key].splice(index, 1);
+                        if (formBigCust.value[key].length === 0) formBigCust.value[key].push('');
+                    }
                     nextTick(() => lucide.createIcons());
                 };
 
                 const clearForm = () => {
-                    if(confirm('คุณต้องการล้างข้อมูลทั้งหมดใช่หรือไม่?')) {
-                        form.value = {
-                            branchHeader: 'S055-CTR',
-                            customerName: '',
-                            items: [''],
-                            jobSite: '',
-                            employees: [''],
-                            promotions: [''],
-                            paymentType: [''],
-                            customerType: '',
-                            upsell: ''
-                        };
+                    if(confirm('คุณต้องการล้างข้อมูลหน้านี้ใช่หรือไม่?')) {
+                        if (currentPage.value === 'bigCustomer') {
+                            formBigCust.value = {
+                                branchHeader: 'S055-CTR',
+                                customerName: '',
+                                items: [''],
+                                jobSite: '',
+                                employees: [''],
+                                promotions: [''],
+                                paymentType: [''],
+                                customerType: '',
+                                upsell: ''
+                            };
+                        } else {
+                            formDaily.value = {
+                                month: '',
+                                salespersonName: '',
+                                currentDate: '',
+                                mtdDateRange: '',
+                                sales: { daily: '', mtd: '' },
+                                appB2B: { daily: '', mtd: '' },
+                                bizId: { daily: '', mtd: '' },
+                                inActive: { called: '', visited: '', sales: '' },
+                                visits: { daily: '', mtd: '', closed: '', sales: '' }
+                            };
+                        }
                     }
                 };
 
+                // คำนวณ Text
                 const generatedText = computed(() => {
-                    let text = `${form.value.branchHeader} รายงานลูกค้ารายใหญ่\n`;
-                    text += `1. ชื่อลูกค้า\n   ${form.value.customerName || '-'}\n\n`;
-                    
-                    const formatList = (label, list) => {
-                        let str = `${label}\n`;
-                        const filled = list.filter(i => i.trim() !== '');
-                        if (filled.length > 0) {
-                            filled.forEach(i => { str += `  - ${i}\n`; });
-                        } else {
-                            str += `  -\n`;
-                        }
-                        return str + `\n`;
-                    };
+                    if (currentPage.value === 'bigCustomer') {
+                        let text = `${formBigCust.value.branchHeader} รายงานลูกค้ารายใหญ่\n`;
+                        text += `1. ชื่อลูกค้า\n   ${formBigCust.value.customerName || '-'}\n\n`;
+                        
+                        const formatList = (label, list) => {
+                            let str = `${label}\n`;
+                            const filled = list.filter(i => i.trim() !== '');
+                            if (filled.length > 0) {
+                                filled.forEach(i => { str += `  - ${i}\n`; });
+                            } else {
+                                str += `  -\n`;
+                            }
+                            return str + `\n`;
+                        };
 
-                    text += formatList(`2.รายการสินค้าที่ซื้อ`, form.value.items);
-                    text += `3.ประเภทหน้างาน\n  - ${form.value.jobSite || '-'}\n\n`;
-                    text += formatList(`4. พนง.ผู้รับผิดชอบดูแลลูกค้า`, form.value.employees);
-                    text += formatList(`5. ราคาที่ใช้ปิดการขาย`, form.value.promotions);
-                    text += formatList(`6. ประเภทการ ชำระเงิน`, form.value.paymentType);
-                    text += `7.เป็นลูกค้า\n  - ${form.value.customerType || '-'}\n\n`;
-                    text += `8.โอกาสการขายสินค้าเพิ่ม\n  - ${form.value.upsell || '-'}`;
+                        text += formatList(`2.รายการสินค้าที่ซื้อ`, formBigCust.value.items);
+                        text += `3.ประเภทหน้างาน\n  - ${formBigCust.value.jobSite || '-'}\n\n`;
+                        text += formatList(`4. พนง.ผู้รับผิดชอบดูแลลูกค้า`, formBigCust.value.employees);
+                        text += formatList(`5. ราคาที่ใช้ปิดการขาย`, formBigCust.value.promotions);
+                        text += formatList(`6. ประเภทการ ชำระเงิน`, formBigCust.value.paymentType);
+                        text += `7.เป็นลูกค้า\n  - ${formBigCust.value.customerType || '-'}\n\n`;
+                        text += `8.โอกาสการขายสินค้าเพิ่ม\n  - ${formBigCust.value.upsell || '-'}`;
 
-                    return text;
+                        return text;
+
+                    } else if (currentPage.value === 'dailySales') {
+                        const fd = formDaily.value;
+                        const date1 = fd.currentDate || '-';
+                        const date2 = fd.mtdDateRange || '-';
+
+                        let text = `ยอดขายประจำวัน ${fd.month || '-'}\n\n`;
+                        
+                        text += `📌${fd.salespersonName || '-'}\n`;
+                        text += `วันที่ ${date1} = ${fd.sales.daily || '0'}\n`;
+                        text += `วันที่ ${date2} = ${fd.sales.mtd || '0'}\n\n`;
+
+                        text += `ยอดขาย APP B2B\n`;
+                        text += `วันที่ ${date1} = ${fd.appB2B.daily || '0'} บาท\n`;
+                        text += `วันที่ ${date2} = ${fd.appB2B.mtd || '0'} บาท\n\n`;
+
+                        text += `ยอดสมัคร BizID\n`;
+                        text += `วันที่ ${date1} = ${fd.bizId.daily || '0'} ราย\n`;
+                        text += `วันที่ ${date2} = ${fd.bizId.mtd || '0'} ราย\n\n`;
+
+                        text += `ยอดการโทรติดตามลูกค้า In Active\n`;
+                        text += `โทรแล้ว ${fd.inActive.called || '0'} ราย\n`;
+                        text += `เข้ามาแล้ว ${fd.inActive.visited || '0'} ราย\n`;
+                        text += `ยอดขาย ${fd.inActive.sales || '0'} บาท\n\n`;
+
+                        text += `เข้าพบลูกค้า\n`;
+                        text += `วันที่ ${date1} = ${fd.visits.daily || '0'} ราย\n`;
+                        text += `วันที่ ${date2} = ${fd.visits.mtd || '0'} ราย\n`;
+                        text += `เข้ามาปิดแล้ว ${fd.visits.closed || '0'} ราย\n`;
+                        text += `ยอดขาย ${fd.visits.sales || '0'} บาท`;
+
+                        return text;
+                    }
                 });
 
                 const sendToLine = () => {
@@ -258,13 +514,26 @@
                 };
 
                 const copyToClipboard = () => {
-                    const el = document.createElement('textarea');
-                    el.value = generatedText.value;
-                    document.body.appendChild(el);
-                    el.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(el);
-                    
+                    // ใช้ Navigator Clipboard API ก่อน (ทันสมัยกว่า)
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(generatedText.value).then(() => {
+                            showCopiedState();
+                        });
+                    } else {
+                        // Fallback สำหรับเบราว์เซอร์เก่า
+                        const el = document.createElement('textarea');
+                        el.value = generatedText.value;
+                        el.style.position = 'absolute';
+                        el.style.left = '-9999px';
+                        document.body.appendChild(el);
+                        el.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(el);
+                        showCopiedState();
+                    }
+                };
+
+                const showCopiedState = () => {
                     isCopied.value = true;
                     nextTick(() => lucide.createIcons());
                     
@@ -272,14 +541,14 @@
                         isCopied.value = false;
                         nextTick(() => lucide.createIcons());
                     }, 2000);
-                };
+                }
 
                 onMounted(() => {
                     lucide.createIcons();
                 });
 
                 return {
-                    form, isCopied, generatedText,
+                    currentPage, formBigCust, formDaily, isCopied, generatedText,
                     addItem, removeItem, clearForm, copyToClipboard, sendToLine
                 };
             }
